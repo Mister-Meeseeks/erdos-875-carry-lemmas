@@ -1,0 +1,943 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1.15in]{geometry}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks\do\-\do\_\do\.}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{observation}[lemma]{Observation}
+\theoremstyle{definition}
+\newtheorem{definition}[lemma]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[lemma]{Remark}
+\newtheorem{question}[lemma]{Question}
+
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\FS}{\operatorname{FS}}
+\newcommand{\loc}[1]{\mathcal{L}_{#1}}
+\DeclareMathOperator{\SSum}{\Sigma}
+
+\title{Sharp local carry lemmas and a quadratic radix barrier for
+admissible-set block constructions\\[2pt]
+{\large (Erd\H{o}s Problem 875)}}
+\author{\textsc{erdosSweep} harness\thanks{Machine-generated mathematics,
+adversarially cross-verified; see the provenance statement in
+Section~\ref{sec:provenance}. Harness maintainer: Douglas~R.~Colkitt.}}
+\date{July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+An infinite set $A\subset\N$ is \emph{admissible} if any two finite subsets
+with equal sums have equal cardinalities. The strongest known bound on the
+gaps of an admissible sequence, $a_{n+1}-a_n\le n^{3+2\sqrt2}$ (GPT-5.5
+Pro--Mazur, 2026), rests on a local ``carry lemma'' for the block
+$C_m=\{1+i(m+1):0\le i<m\}$ modulo $Q_m=m^2+m+1$, proved there for carry
+radius $|u|<m/4$ under the quotient window $|w|<m/2$. We prove the sharp
+local statement: the carry lemma for $(C_m,Q_m)$ holds at radius exactly
+$\lceil m/2\rceil$ with no hypothesis on the quotient, and fails at radius
+$\lceil m/2\rceil+1$. (At this radius, quotients realized by $C_m$
+automatically satisfy $2|w|<m$, so the substance is the sharp radius,
+not the absent window.) This upgrades the closure step of the construction: a block
+extension preserves the carry invariant assuming only the cardinality bound
+$|A|\le\lceil k/2\rceil$ --- no containment $A\subset[1,M)$ and no mass
+estimate. In the opposite direction we delimit the framework. First, every
+$k$-element block satisfying the exact scalar carry property \emph{at all
+quotients} has radix $Q\ge\lfloor k^2/4\rfloor+1$, and
+$Q\ge\lfloor(k+1)^2/4\rfloor+1$ when $Q\notin C$; both bounds are attained.
+The subset-sum counting input is classical (Nathanson 1995; Bhanja--Pandey
+2022); we include a short self-contained proof. This barrier applies
+\emph{only} to the all-quotient property: invariants imposed for a bounded
+window of quotients are not ruled out and remain the natural attack
+direction. Second, staggered lifts $c_i\mapsto c_i+Q_m\lambda_i$ of the
+Mazur block preserve the exact invariant precisely when
+$\lambda_i=\lambda(m-i)$, and unit carry radius then forces $\lambda=0$;
+this rigidity persists under quotient windows comparable to the lift size.
+The sharp carry lemma and the closure --- including the sharpness witness,
+for every $m$ --- have been formalized in Lean~4 with mathlib; the barrier
+and rigidity results are paper-only.
+\emph{This note resolves none of the questions of Erd\H{o}s Problem 875}:
+it contains no new construction, no improved gap exponent, and no result on
+the ratio question. It sharpens the local machinery of the known
+construction and shows that further progress within the scalar-carry
+framework must come from bounded-window invariants, non-scalar invariants,
+or new residue systems.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+Following Straus \cite{Straus66} and Erd\H{o}s--Nicolas--S\'ark\H{o}zy
+\cite{ENS91}, call a set $A$ of positive integers \emph{admissible} if any
+two finite subsets of $A$ with the same sum have the same cardinality;
+equivalently, the $r$-fold sums of distinct elements of $A$ are pairwise
+disjoint for distinct $r$. For finite sets the extremal problem is
+essentially closed: intervals $\{N-k+1,\dots,N\}$ with $k\approx2\sqrt N$
+are admissible \cite{Straus66}, and $2\sqrt N$ is asymptotically optimal
+\cite{DF95,DF99}. For infinite admissible sets, Problem~875 of the
+Erd\H{o}s problems collection \cite{EP875} asks how dense such a set can
+be, and in particular how small its gaps can be made; Erd\H{o}s remarked
+that it is ``not completely trivial'' to find an admissible sequence with
+$a_{n+1}/a_n\to1$ (as quoted at \cite{EP875}), a sub-question that remains
+open in both directions. Erd\H{o}s--Nicolas--S\'ark\H{o}zy \cite{ENS91}
+constructed an infinite admissible set of polynomial counting growth. In
+May 2026, a note of GPT-5.5 Pro and Mazur \cite{Mazur26}, with an
+accompanying Lean formalization, gave an explicit admissible set with
+\[
+a_{n+1}-a_n\;\le\; n^{\,3+2\sqrt2}\qquad(3+2\sqrt2=5.828\ldots),
+\]
+the strongest known gap bound. Neither construction has
+$a_{n+1}/a_n\to1$, and \cite{Mazur26} explicitly disclaims the ratio
+question.
+
+\medskip
+\noindent\textbf{Scope.} \emph{This note resolves none of the questions of
+Problem 875.} We prove no new construction, no improvement of the exponent
+$3+2\sqrt2$, and nothing about the ratio question. What we do is sharpen
+the local machinery underlying \cite{Mazur26} to its exact limits, and
+prove two impossibility results that delimit the ``scalar carry''
+framework that machinery lives in. Concretely (definitions in
+Section~\ref{sec:notation}):
+
+\begin{enumerate}
+\item \textbf{Sharp local carry lemma} (Proposition~\ref{prop:sharp}). For
+the arithmetic-progression block $C_m=\{1+i(m+1):0\le i<m\}$ and radix
+$Q_m=m^2+m+1$, the local carry lemma holds at carry radius exactly
+$\lceil m/2\rceil$, with no hypothesis on the quotient, and fails at radius
+$\lceil m/2\rceil+1$. The published lemma \cite{Mazur26} has radius $m/4$
+under a quotient window $|w|<m/2$. We temper the ``window removed''
+reading: at this radius, quotients realized by $C_m$ obey $2|w|<m$
+automatically (Remark~\ref{rem:autow}), so the substantive gains are the
+doubled, sharp radius and the consequence in item 2.
+\item \textbf{Containment-free closure} (Proposition~\ref{prop:closure}).
+The closure step of the construction --- adjoining a scaled block $MC_k$ to
+an already-good pair $(A,M)$ --- needs only the cardinality bound
+$|A|\le\lceil k/2\rceil$. The hypotheses $A\subset[1,M)$ and
+$\SSum(A)/M<k/4$ of \cite[Lemma~3]{Mazur26} are dropped entirely, and no
+quotient bound is tracked. Block length $\approx2|A|$ suffices in place of
+$\approx4|A|$.
+\item \textbf{Quadratic radix barrier} (Proposition~\ref{prop:wall}).
+Every $k$-element block $C$ satisfying the exact scalar carry property
+\emph{at all quotients} has radix $Q\ge\lfloor k^2/4\rfloor+1$ (and
+$\ge\lfloor(k+1)^2/4\rfloor+1$ if $Q\notin C$); both bounds are attained,
+by flat blocks. So no all-quotient scalar block can beat the quadratic
+radix of \cite{Mazur26} in exponent. We stress the qualifier: the barrier
+says nothing about invariants imposed only for a \emph{bounded window} of
+quotients, which are explicitly not ruled out
+(Remark~\ref{rem:window-scope}).
+\item \textbf{Rigidity of staggered lifts} (Proposition~\ref{prop:rigid}).
+Lifting the Mazur block by multiples of the radix,
+$c_i\mapsto c_i+Q_m\lambda_i$, preserves the exact scalar invariant if and
+only if $\lambda_i=\lambda(m-i)$ for some $\lambda\in\Z$; carry radius $1$
+then forces $\lambda=0$. The rigidity persists for bounded-window
+invariants once the window exceeds the lift size
+(Remark~\ref{rem:windowed-rigidity}).
+\end{enumerate}
+
+Items 1--2 are the positive half: they show the bookkeeping side of the
+carry method is not the obstruction to denser or overlapping block
+towers, partially meeting the desideratum of \cite[Remark~4]{Mazur26}.
+Items 3--4 are the negative half: within the exact, all-quotient, scalar
+framework, the radix cost is intrinsically quadratic and the known residue
+system cannot be geometrically rearranged. Section~\ref{sec:consequences}
+spells out what this leaves open for the two questions of Problem 875.
+
+All proofs are elementary and complete. Propositions \ref{prop:sharp}
+and \ref{prop:closure} have additionally been formalized in Lean~4 ---
+both directions of Proposition~\ref{prop:sharp}, with the sharpness
+proved for every $m$, and zero \texttt{sorry}s; see the formalization
+paragraph in Section~\ref{sec:provenance} --- and
+Proposition~\ref{prop:sharp}'s frontier has been machine-checked for
+$3\le m\le26$ (Remark~\ref{rem:machine}). The mathematics in this note
+was produced and cross-verified by AI systems; see the provenance
+statement in Section~\ref{sec:provenance}.
+
+\section{Notation and the carry framework of the Mazur
+construction}\label{sec:notation}
+
+For a finite set $B\subset\Z$ and $t\in\Z$, the \emph{graded difference
+set} is
+\[
+\Delta_t(B)\;=\;\Bigl\{\sum_{x\in U}x-\sum_{x\in V}x \;:\;
+U,V\subseteq B,\ |U|-|V|=t\Bigr\}.
+\]
+For an infinite set the same definition is used with $U,V$ finite. Thus
+$A$ is admissible if and only if $0\notin\Delta_t(A)$ for every $t\ne0$.
+Replacing $(U,V)$ by $(U\setminus V,\,V\setminus U)$ changes neither the
+difference nor the cardinality defect, so every element of $\Delta_t(B)$,
+$B=\{b_1,\dots,b_k\}$, can be written as $\sum_i\varepsilon_ib_i$ with
+$\varepsilon\in\{-1,0,1\}^k$ and $\sum_i\varepsilon_i=t$, and conversely.
+
+\begin{definition}\label{def:local}
+Let $C\subset\Z$ be finite, $Q\ge1$, $U\ge0$. Say $\loc{U}(C,Q)$ holds if
+for all $t,w,u\in\Z$ with $|u|\le U$:
+\[
+Y\in\Delta_t(C),\quad Y=Qw-u
+\qquad\Longrightarrow\qquad t=w-u .
+\]
+There is no restriction on $w$; we call this the \emph{all-quotient}
+property, and $U$ the \emph{carry radius}. Clearly
+$\loc{U}\Rightarrow\loc{U'}$ for $U'\le U$.
+\end{definition}
+
+\begin{definition}\label{def:wcg}
+A pair $(A,M)$, with $A\subset\Z$ finite and $M\ge1$, is \emph{weakly
+carry-good} if for all $T,q\in\Z$: $D\in\Delta_T(A)$ and $D=Mq$ imply
+$T=q$. Equivalently, $(A,M)$ is weakly carry-good iff $\loc{0}(A,M)$
+holds. Taking $D=0=M\cdot0$ shows every weakly carry-good $A$ is
+admissible.
+\end{definition}
+
+The construction of \cite{Mazur26} uses the blocks and radices
+\[
+C_m=\{1+i(m+1):0\le i<m\},\qquad Q_m=m^2+m+1 ,
+\]
+so $|C_m|=m$, $\max C_m=m^2$, $\SSum(C_m)=m(m^2+1)/2$, and
+$Q_m-\max C_m=m+1$ equals the internal spacing. Every element of $C_m$ is
+$\equiv1\pmod{m+1}$, so a sum of $r$ distinct elements is $\equiv
+r\pmod{m+1}$: the block is admissible with the residue reading off the
+cardinality. Globally, blocks $B_j=M_jC_{k_j}$ are stacked with moduli
+$M_{j+1}=M_jQ_{k_j}$ and lengths $k_j\approx2(1+N_{j-1})^{1+\sqrt2}$
+($N_{j-1}$ = number of prior elements); the blocks occupy consecutive
+intervals $[M_j,\,M_jk_j^2]$ and all gaps at stage $j$ equal
+$M_j(k_j+1)$, which yields the exponent $3+2\sqrt2$. Two lemmas drive the
+induction \cite{Mazur26}:
+
+\begin{itemize}
+\item \emph{Local carry lemma} (their Lemma 2): if $Y\in\Delta_t(C_m)$ and
+$Y=Q_mw-u$ with $4|u|<m$ and $2|w|<m$, then $t=w-u$. (These are the exact
+hypotheses of the Lean artifact \texttt{LocalCarry.lean}.)
+\item \emph{Carry closure} (their Lemma 3): call $(A,M)$ \emph{carry-good}
+if $A\subset[1,M)\cap\N$ and the implication of Definition~\ref{def:wcg}
+holds. If $(A,M)$ is carry-good and $\SSum(A)/M<k/4$, then
+$(A\cup MC_k,\,MQ_k)$ is carry-good, with $\SSum(A')/M'<k/2$ (which is
+what bounds the quotient $|w|$ fed to Lemma 2 at the next stage).
+\end{itemize}
+
+Sections \ref{sec:sharp}--\ref{sec:closure} replace both lemmas by
+sharper, hypothesis-lighter statements; Sections
+\ref{sec:wall}--\ref{sec:rigidity} bound what any such improvement can
+achieve.
+
+\section{The sharp local carry lemma}\label{sec:sharp}
+
+\begin{proposition}[sharp local carry lemma]\label{prop:sharp}
+For every $m\ge1$, $\loc{\lceil m/2\rceil}(C_m,Q_m)$ holds. This is sharp:
+$\loc{\lceil m/2\rceil+1}(C_m,Q_m)$ fails.
+\end{proposition}
+
+\begin{proof}
+Write $d=m+1$, $Q=Q_m=md+1$, $L=m(m+1)/2$, and $r=\lceil m/2\rceil$. The
+$i$-th element of $C_m$ is
+\[
+c_i \;=\; 1+di \;=\; Q-d(m-i)\qquad(0\le i<m).
+\]
+
+\emph{The lemma at radius $r$.} Let $Y\in\Delta_t(C_m)$; as in
+Section~\ref{sec:notation} write $Y=\sum_{i=0}^{m-1}\varepsilon_ic_i$ with
+$\varepsilon_i\in\{-1,0,1\}$ and $t=\sum_i\varepsilon_i$. Put
+$z=\sum_i(m-i)\varepsilon_i$; then
+\[
+Y \;=\; Qt-dz,
+\qquad
+|z|\;\le\;\sum_{i=0}^{m-1}(m-i)\;=\;L .
+\]
+Suppose $Y=Qw-u$ with $|u|\le r$, and set $v=w-t$, so that $Qv=u-dz$.
+Since $Q\equiv1\pmod d$, reducing modulo $d$ gives $v\equiv u\pmod d$,
+say $v=u+\ell d$ with $\ell\in\Z$. Substituting back and using $Q-1=md$,
+\begin{equation}\label{eq:key}
+z \;=\; -mu-\ell Q .
+\end{equation}
+If $\ell\ne0$ then
+\[
+|z| \;=\; |mu+\ell Q| \;\ge\; |\ell|\,Q-m|u| \;\ge\; Q-mr \;>\; L,
+\]
+where the last inequality is a parity check:
+\[
+Q-mr-L=
+\begin{cases}
+h+1, & m=2h,\\
+1, & m=2h+1 .
+\end{cases}
+\]
+This contradicts $|z|\le L$. Hence $\ell=0$, so $v=u$, i.e.\
+$t=w-u$.\footnote{The Lean formalization (Section~\ref{sec:provenance})
+surfaced a simplification: no parity split is actually needed here, since
+$2mr\le m(m+1)=2L$ and $Q=2L+1$ give $Q-mr-L\ge1$ in both parities at
+once. We keep the explicit split, which the sharpness direction uses
+anyway.}
+
+\emph{Sharpness.} Let $u_0=r+1$ and $z_0=Q-mu_0$. Explicitly,
+\begin{align*}
+m=2h\ (h\ge1):&\qquad z_0=2h^2+1\;\le\;L=2h^2+h,\\
+m=2h+1\ (h\ge0):&\qquad z_0=2h^2+h+1\;\le\;L=2h^2+3h+1,
+\end{align*}
+so $0\le z_0\le L$ in both parities. The coefficients $m-i$
+($0\le i<m$) are exactly $1,2,\dots,m$, and every integer in $[0,L]$ is a
+sum of a subset of $\{1,\dots,m\}$ (induction on $m$: if $s\ge m$ use $m$
+and apply the inductive step to $s-m\le(m-1)m/2$; if $s<m$ then $s$ is
+itself an element or $0$). Choose $\varepsilon\in\{0,1\}^m$ with
+$\sum_i(m-i)\varepsilon_i=z_0$, and put $t=\sum_i\varepsilon_i$, so
+$Y=Qt-dz_0\in\Delta_t(C_m)$. With $w=t+u_0-d$ we get, using $Q-1=md$ and
+$z_0=Q-mu_0$,
+\[
+Qw-u_0 \;=\; Qt+(Q-1)u_0-Qd \;=\; Qt+d(mu_0-Q) \;=\; Qt-dz_0 \;=\; Y,
+\]
+while $w-u_0=t-d\ne t$. Thus $\loc{r+1}(C_m,Q_m)$ fails.
+\end{proof}
+
+\begin{remark}[machine check]\label{rem:machine}
+Two independent implementations corroborate the frontier: exhaustive
+enumeration over all $\varepsilon\in\{-1,0,1\}^m$ for $3\le m\le24$ (log
+in the companion repository:\footnote{File paths in this note refer to
+the companion repository,
+\url{https://github.com/Mister-Meeseeks/erdos-875-carry-lemmas},
+which also contains the scripts reproducing both checks.}
+\path{verification/machine-check-prop1-frontier-m24.txt}) and
+a dynamic program over all graded differences for $3\le m\le26$
+(log: \path{verification/machine-check-frontier-m26.txt}) both find the
+minimal $|u|$ admitting a violation to be exactly $\lceil m/2\rceil+1$
+in every case; $m\le2$ was checked by hand. For
+example, at $m=3$ the first violation is $Y=10=c_0+c_2=13\cdot1-3$, with
+$t=2\ne w-u=-2$ --- this is the witness produced by the proof above
+($u_0=3$, $z_0=4=3+1$, $\varepsilon=(1,0,1)$, $w=1$). These checks are
+not load-bearing --- the proof above covers every $m$, and both
+directions are also machine-verified in Lean for all $m$
+(Section~\ref{sec:provenance}) --- they corroborate the frontier by
+independent means.
+\end{remark}
+
+\begin{remark}[how much of the quotient window was real]\label{rem:autow}
+Proposition~\ref{prop:sharp} carries no hypothesis on $w$, but for the
+block $C_m$ this is largely automatic rather than extra strength: if
+$Y\in\Delta_t(C_m)$ and $Y=Q_mw-u$ with $|u|\le m$, then
+$Q_m|w|\le|Y|+|u|\le\SSum(C_m)+m$ with $\SSum(C_m)=m(m^2+1)/2$, so
+\[
+|w|\;\le\;\Bigl\lfloor\frac{\SSum(C_m)+m}{Q_m}\Bigr\rfloor
+\;\le\;\Bigl\lfloor\frac{m}{2}\Bigr\rfloor
+\]
+for every \emph{realizable} quotient (the first floor can be strictly
+smaller: at $m=4$ it is $1$, not $\lfloor m/2\rfloor=2$). Sharper: at the
+radius of Proposition~\ref{prop:sharp}, $|u|\le\lceil m/2\rceil$, the
+same computation gives $|w|\le\lfloor(m-1)/2\rfloor$, i.e.\ $2|w|<m$
+automatically --- every realizable quotient lies strictly \emph{inside}
+the strict window $2|w|<m$ of \cite[Lemma~2]{Mazur26}, so that window was
+never a live constraint on realizable representations. The substantive
+content of Proposition~\ref{prop:sharp} is the sharp radius
+$\lceil m/2\rceil$ (versus $m/4$), together with the fact that the
+all-quotient formulation lets the closure step below dispense with any
+quotient accounting: there the quotient is an a priori unbounded divisor
+quotient, not yet known to be realizable.
+\end{remark}
+
+\section{Containment-free closure}\label{sec:closure}
+
+\begin{proposition}[containment-free closure]\label{prop:closure}
+Let $(A,M)$ be weakly carry-good (Definition~\ref{def:wcg}), let $N=|A|$,
+let $k\ge1$, and suppose
+\[
+N\;\le\;\Bigl\lceil\frac{k}{2}\Bigr\rceil,
+\qquad
+A\cap MC_k=\varnothing .
+\]
+Then $\bigl(A\cup MC_k,\;MQ_k\bigr)$ is weakly carry-good.
+\end{proposition}
+
+\begin{proof}
+Let $D\in\Delta_T(A\cup MC_k)$ with $D=MQ_kq$; we must show $T=q$. Since
+$A$ and $MC_k$ are disjoint, any pair of subsets of the union splits, so
+\[
+D=D_A+MY,\qquad D_A\in\Delta_{T_A}(A),\quad Y\in\Delta_t(C_k),\quad
+T=T_A+t .
+\]
+From $D=MQ_kq$ we get $D_A=M(Q_kq-Y)=Me$ with $e:=Q_kq-Y\in\Z$. Weak
+carry-goodness of $(A,M)$ gives $e=T_A$, whence
+\[
+|e|=|T_A|\le|A|=N\le\Bigl\lceil\frac{k}{2}\Bigr\rceil .
+\]
+Now $Y=Q_kq-e$ is a representation with carry $|e|\le\lceil k/2\rceil$
+and quotient $q$; Proposition~\ref{prop:sharp} (all-quotient, radius
+$\lceil k/2\rceil$) yields $t=q-e$. Therefore
+$T=T_A+t=e+(q-e)=q$.
+\end{proof}
+
+\begin{remark}[exactly which hypotheses are dropped]\label{rem:dropped}
+Proposition~\ref{prop:closure} is the direct upgrade of
+\cite[Lemma~3]{Mazur26}. Compared with that statement it drops:
+\begin{enumerate}
+\item the containment $A\subset[1,M)\cap\N$ --- here $A$ is an arbitrary
+finite set of integers, which is the shape of hypothesis an
+\emph{overlapping}-scales construction would need;
+\item the mass estimate $\SSum(A)/M<k/4$ --- replaced by the cardinality
+bound $N\le\lceil k/2\rceil$, i.e.\ $k\ge2N-1$, so blocks of length
+$\approx2|A|$ suffice where $\approx4|A|$ was needed;
+\item all quotient bookkeeping --- no analogue of the output estimate
+$\SSum(A')/M'<k/2$ is tracked, because Proposition~\ref{prop:sharp} needs
+no quotient window. This is where the all-quotient form earns its keep:
+in the proof, $q$ is a divisor quotient not a priori bounded by anything.
+\end{enumerate}
+The conclusion is again weak carry-goodness, so the statement iterates
+and recovers the original induction (carry-good $\Rightarrow$ weakly
+carry-good).
+\end{remark}
+
+\begin{remark}[what is \emph{not} improved]\label{rem:geometry}
+Proposition~\ref{prop:closure} does not change the geometry of the
+construction: for the standard block, $\max C_k=k^2<Q_k$, so the tower
+$M_{j+1}=M_jQ_{k_j}$ still stacks blocks in disjoint consecutive
+intervals, with the same gaps and the same exponent $3+2\sqrt2$. What the
+proposition shows is that the \emph{closure mechanism} imposes no
+containment or mass obstruction on more ambitious (e.g.\ overlapping)
+geometries --- only the local lemma and the block geometry do. This
+partially meets the desideratum of \cite[Remark~4]{Mazur26}, which asks
+what a replacement local block must supply: by
+Proposition~\ref{prop:closure}, only a carry lemma of radius
+$\ge|A|$ compatible with its own radix, plus the geometric wish-list.
+\end{remark}
+
+\section{A quadratic radix barrier for all-quotient scalar
+carry}\label{sec:wall}
+
+The results above sharpen the known block; the next one bounds every
+possible block within the exact scalar framework. Throughout this
+section the \emph{all-quotient} qualifier is essential; see
+Remark~\ref{rem:window-scope}.
+
+For a finite $D\subset\Z$ let $\FS(D)=\{\sum_{x\in S}x:S\subseteq D\}$
+denote the set of distinct subset sums, including the empty sum $0$.
+
+\begin{lemma}[carry $\Rightarrow$ modular injectivity]\label{lem:inj}
+Let $C\subset\Z$ with $|C|=k$ and let $Q\ge1$ satisfy $\loc0(C,Q)$, i.e.
+\begin{equation}\label{eq:exact}
+Y\in\Delta_t(C),\quad Y=Qw
+\qquad\Longrightarrow\qquad t=w .
+\end{equation}
+Then reduction modulo $Q$ is injective on $\FS(C-Q)$; in particular
+$|\FS(C-Q)|\le Q$.
+\end{lemma}
+
+\begin{proof}
+Put $D=C-Q=\{c-Q:c\in C\}$; subsets of $D$ correspond bijectively to
+subsets $X\subseteq C$, with $\sigma_D(X)=\sigma_C(X)-Q|X|$, where
+$\sigma$ denotes the subset sum. Suppose
+$\sigma_D(X)\equiv\sigma_D(X')\pmod Q$ for $X,X'\subseteq C$. Then
+$\sigma_C(X)-\sigma_C(X')\equiv0\pmod Q$, say
+$\sigma_C(X)-\sigma_C(X')=Qw$; this difference lies in $\Delta_t(C)$ with
+$t=|X|-|X'|$, so \eqref{eq:exact} forces $w=t$. Hence
+\[
+\sigma_D(X)-\sigma_D(X')
+=\bigl(\sigma_C(X)-\sigma_C(X')\bigr)-Q\bigl(|X|-|X'|\bigr)
+=Qw-Qt=0 .
+\]
+So congruent values of $\FS(D)$ are equal, and $\FS(D)$ injects into
+$\Z/Q\Z$.
+\end{proof}
+
+The counting input we need is known: the following is the $\alpha=0$ case
+of \cite[Corollary~9]{BP22} (proved there via their Theorems 4 and 7),
+and it is optimal in that case by \cite[Remark~10]{BP22}; the $\alpha=1$
+analogue goes back to Nathanson \cite[Theorem~3]{Nathanson95}. We include
+an elementary proof for completeness, so that this note is
+self-contained.
+
+\begin{lemma}[subset-sum counting; known]\label{lem:count}
+Let $D$ be a set of $k$ distinct integers. Then
+\[
+|\FS(D)|\;\ge\;\Bigl\lfloor\frac{k^2}{4}\Bigr\rfloor+1,
+\]
+and if $0\notin D$ then
+$|\FS(D)|\ge\bigl\lfloor(k+1)^2/4\bigr\rfloor+1$.
+\end{lemma}
+
+\begin{proof}
+Let $p$ and $n$ be the numbers of positive and negative elements of $D$,
+so $p+n=s:=k-[0\in D]$.
+
+If $b_1<\dots<b_p$ are the positive elements, then the sums
+\[
+T_j+b_i,\qquad 1\le j\le p,\quad 1\le i\le p-j+1,
+\qquad T_j:=b_{p-j+2}+\dots+b_p\ \ (T_1=0),
+\]
+form a strictly increasing chain of $p+(p-1)+\dots+1=p(p+1)/2$ subset
+sums: each row is increasing in $i$, the last entry of row $j$ is
+$T_{j+1}$, and the first entry of row $j+1$ exceeds $T_{j+1}$ because
+$b_1>0$. So $D$ has at least $p(p+1)/2$ distinct \emph{positive} subset
+sums, and symmetrically at least $n(n+1)/2$ distinct \emph{negative}
+ones; together with the empty sum $0$ these are pairwise distinct, giving
+\[
+|\FS(D)|\;\ge\;\frac{p(p+1)}{2}+\frac{n(n+1)}{2}+1 .
+\]
+For fixed $s=p+n$ the right-hand side, as a function of $p$, changes by
+$2p+1-s$ when $p\mapsto p+1$, so it is minimized at the balanced split,
+where its value is $\lfloor(s+1)^2/4\rfloor+1$ (both parities checked
+directly). If $0\notin D$ then $s=k$ and we get
+$\lfloor(k+1)^2/4\rfloor+1$; if $0\in D$ then $s=k-1$ and we get
+$\lfloor k^2/4\rfloor+1$. Since
+$\lfloor(k+1)^2/4\rfloor\ge\lfloor k^2/4\rfloor$, the first display holds
+in both cases.
+\end{proof}
+
+\begin{proposition}[quadratic radix barrier]\label{prop:wall}
+Let $C$ be a set of $k$ distinct integers and let $Q\ge1$ satisfy the
+exact \emph{all-quotient} scalar carry property \eqref{eq:exact} ---
+equivalently, let $(C,Q)$ be weakly carry-good. Then
+\[
+Q\;\ge\;\Bigl\lfloor\frac{k^2}{4}\Bigr\rfloor+1 ,
+\]
+and if moreover $Q\notin C$ then
+$Q\ge\bigl\lfloor(k+1)^2/4\bigr\rfloor+1$. Both bounds are attained for
+every $k$ (Remark~\ref{rem:wall-sharp}).
+\end{proposition}
+
+\begin{proof}
+The set $D=C-Q$ has $k$ distinct elements, and $0\in D$ iff $Q\in C$.
+Combine Lemma~\ref{lem:inj} with Lemma~\ref{lem:count}.
+\end{proof}
+
+Consequently any block family retaining the exact all-quotient scalar
+invariant has $Q=\Omega(k^2)$: the quadratic radix of the Mazur block
+($Q_k=k^2+k+1$) is optimal \emph{in exponent} for the entire all-quotient
+scalar-carry framework, not merely for arithmetic progressions. The
+hoped-for all-quotient scalar block with $Q\asymp k^{2-\delta}$ does not
+exist.
+This does not prove the gap exponent $3+2\sqrt2$ optimal among all
+constructions; see Section~\ref{sec:consequences}.
+
+\begin{remark}[scope: the barrier does \emph{not} touch bounded-window
+invariants]\label{rem:window-scope}
+Every statement of the barrier above carries the all-quotient qualifier,
+and it cannot be removed: the proof of Lemma~\ref{lem:inj} applies
+\eqref{eq:exact} to differences $\sigma_C(X)-\sigma_C(X')$ whose
+quotients $w$ can be as large as $\bigl(\sum_{c\in C}|c|\bigr)/Q$ --- and
+$\sum_{c\in C}|c|\ge\lfloor k^2/4\rfloor$ for any $k$-element set, so in
+the regime being excluded ($Q$ subquadratic in $k$) these quotients are
+\emph{unbounded} in $k$. A local property required only for
+$|w|\le W$ with, say, $W\approx\varepsilon m^2$ --- the ``wide-window''
+regime that a multiplicatively overlapping tower would actually need ---
+is untouched by Proposition~\ref{prop:wall}. Bounded-window invariants
+with subquadratic radix are \emph{not} ruled out by anything in this
+note, and finding them (over new residue systems, cf.\
+Proposition~\ref{prop:rigid}) is in our view the live attack direction on
+both questions of Problem 875.
+\end{remark}
+
+\begin{remark}[the counting step is tight, and the barrier is
+sharp]\label{rem:wall-sharp}
+Optimality at $\alpha=0$ in \cite[Remark~10]{BP22} means the counting
+step (Lemma~\ref{lem:count}) cannot be improved, so any improvement of
+the barrier would have to strengthen the injectivity step. In fact none
+is possible: the barrier itself is sharp. If
+$\sum_{c\in C}|c-Q|<Q$, then $(C,Q)$ satisfies \eqref{eq:exact}: writing
+$Y=\sum_i\varepsilon_ic_i=Qt+\sum_i\varepsilon_i(c_i-Q)$, the second
+term has absolute value $<Q$, so $Y=Qw$ forces $w=t$. Such ``flat''
+blocks are exactly the interval-separation regime of Straus
+\cite{Straus66} and \cite{ENS91}. Now the minimum of $\sum_{d\in D}|d|$ over $k$-element
+integer sets $D$ is $\lfloor k^2/4\rfloor$ (balanced interval around $0$,
+which contains $0$), and $\lfloor(k+1)^2/4\rfloor$ if $0\notin D$ is
+required. Taking $C=Q+D$ with $D$ extremal and
+$Q=\lfloor k^2/4\rfloor+1$ (resp.\ $\lfloor(k+1)^2/4\rfloor+1$) gives
+equality in Proposition~\ref{prop:wall} for every $k$, in both the
+$Q\in C$ and $Q\notin C$ cases. Explicit extremizers in both parities
+(verified in the targeted critique run cited in
+Section~\ref{sec:provenance}): for $k=2h$ take
+$D=\{-(h-1),\dots,h\}$ ($0\in D$) or $D=\{-h,\dots,-1,1,\dots,h\}$
+($0\notin D$); for $k=2h+1$ take $D=\{-h,\dots,h\}$ or
+$D=\{-h,\dots,-1,1,\dots,h+1\}$; in every case $C=Q+D$ consists of
+distinct positive integers. At $k=2$ the sharpened $Q\notin C$ bound is
+attained by $C=\{2,4\}$, $Q=3$, and the plain bound by $C=\{2,3\}$,
+$Q=2$; the degenerate case $k=1$ is attained by $C=\{1\}$, $Q=2$.
+Thus the barrier identifies the flat block as the radix-cheapest scalar
+block; the \emph{spanning} block of \cite{Mazur26}, with
+$\min C_k=1$ and $\max C_k=k^2$, pays only a factor $4+o(1)$ more.
+Whether a spanning all-quotient scalar block can have
+$Q\le(1-\delta)k^2$ we leave open; Proposition~\ref{prop:wall} caps what
+is achievable at $k^2/4$ regardless.
+\end{remark}
+
+\begin{remark}[attribution of the technique]\label{rem:technique}
+The proof scheme of Proposition~\ref{prop:wall} --- an injectivity
+statement modulo $Q$ combined with a quadratic subset-sum count --- is
+standard in neighbouring problems, and we make no claim of methodological
+novelty: quadratic lower bounds for subset sums in $\Z_p$ go back to
+Olson \cite{Olson68} (see also Erd\H{o}s--Heilbronn), the general
+abelian-group version is DeVos--Goddyn--Mohar--\v{S}\'amal \cite{DGMS07}
+(whose theorem, applied inside $\Z/Q\Z$, would already give
+$Q=\Omega(k^2)$ here with a weaker constant), and the
+pigeonhole ``distinct subset sums mod $Q$ forces $Q\ge|\FS|$'' is the
+engine of the modular Erd\H{o}s distinct-subset-sums problem
+\cite{CGKL23}. What is new here is only the reduction
+(Lemma~\ref{lem:inj}) from the carry property to modular injectivity,
+and the application: a lower bound on the radix of a carry-compatible
+block, a quantity \cite[Remark~4]{Mazur26} leaves unconstrained.
+\end{remark}
+
+\section{Rigidity of staggered lifts of the Mazur block}\label{sec:rigidity}
+
+A natural attempt to make block towers overlap is to keep the Mazur
+residues modulo $Q=Q_m$ but push different elements up by multiples of
+$Q$: replace $c_i$ by $c_i+Q\lambda_i$. First, an immediate obstruction
+to cruder variants:
+
+\begin{observation}[no repeated residues]\label{obs:dup}
+If $(C,Q)$ satisfies \eqref{eq:exact}, then no two distinct elements of
+$C$ are congruent modulo $Q$: their difference would be $Qw$ with
+$w\ne0$ and cardinality defect $t=0$, forcing $t=w$, a contradiction. In
+particular a union of two or more $Q$-translated copies of a block never
+satisfies the exact all-quotient scalar invariant.
+\end{observation}
+
+Staggered lifts avoid this by using each residue once. They fail anyway:
+
+\begin{proposition}[rigidity of staggered lifts]\label{prop:rigid}
+Let $m\ge4$, $Q=Q_m$, $d=m+1$, and for
+$\lambda=(\lambda_0,\dots,\lambda_{m-1})\in\Z^m$ set
+\[
+\widetilde C_\lambda=\{\,c_i+Q\lambda_i \;:\; 0\le i<m\,\},
+\qquad c_i=1+di .
+\]
+\begin{enumerate}
+\item[(i)] The $c_i$ are pairwise incongruent modulo $Q$; hence
+$|\widetilde C_\lambda|=m$ for every $\lambda$, and distinct lifted
+elements never collide.
+\item[(ii)] $\widetilde C_\lambda$ satisfies
+$\loc0(\widetilde C_\lambda,Q)$ if and only if there is $\lambda\in\Z$
+with
+\[
+\lambda_i=\lambda\,(m-i)\qquad(0\le i<m).
+\]
+\item[(iii)] If $\widetilde C_\lambda$ satisfies
+$\loc1(\widetilde C_\lambda,Q)$, then $\lambda_i=0$ for all $i$. (The
+trivial lift satisfies $\loc{\lceil m/2\rceil}$ by
+Proposition~\ref{prop:sharp}, so the survivor of (ii) at radius $1$ is
+exactly the original block.)
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(i) The $c_i$ are distinct and lie in $[1,m^2]\subset[0,Q)$.
+
+(ii), necessity. For $1\le j\le m-2$ the three indices $j-1,j,m-1$ are
+distinct and
+\[
+c_j+c_{m-1}-c_{j-1} \;=\; 1+dm \;=\; Q ,
+\]
+an element of $\Delta_1$ with quotient $1$. After lifting,
+\[
+\widetilde c_j+\widetilde c_{m-1}-\widetilde c_{j-1}
+= Q\bigl(1+\lambda_j+\lambda_{m-1}-\lambda_{j-1}\bigr)\in
+\Delta_1(\widetilde C_\lambda),
+\]
+so $\loc0$ forces $1=1+\lambda_j+\lambda_{m-1}-\lambda_{j-1}$, i.e., with
+$\lambda:=\lambda_{m-1}$,
+\begin{equation}\label{eq:affine}
+\lambda_{j-1}-\lambda_j=\lambda\qquad(1\le j\le m-2),
+\end{equation}
+whence $\lambda_j=\lambda_0-j\lambda$ for $0\le j\le m-2$. It remains to
+pin the intercept $\lambda_0=m\lambda$.
+
+If $m\ge5$, the indices $0,2,m-2$ are distinct and
+$c_2+c_{m-2}-c_0=1+dm=Q$, so $\loc0$ forces
+$\lambda_2+\lambda_{m-2}-\lambda_0=0$; substituting
+$\lambda_2=\lambda_0-2\lambda$ and $\lambda_{m-2}=\lambda_0-(m-2)\lambda$
+gives $\lambda_0=m\lambda$.
+
+If $m=4$ (where $2=m-2$ makes the previous relation degenerate), use
+instead $c_1+c_2-c_0-c_3=0\in\Delta_0$ with quotient $0$: $\loc0$ forces
+$\lambda_1+\lambda_2-\lambda_0-\lambda_3=0$, and with
+$\lambda_1=\lambda_0-\lambda$, $\lambda_2=\lambda_0-2\lambda$,
+$\lambda_3=\lambda$ this gives $\lambda_0=4\lambda$.
+
+In both cases $\lambda_j=(m-j)\lambda$ for $0\le j\le m-2$, and
+$\lambda_{m-1}=\lambda=(m-(m-1))\lambda$.
+
+(ii), sufficiency. Suppose $\lambda_i=\lambda(m-i)$. Any
+$\widetilde Y\in\Delta_t(\widetilde C_\lambda)$ has the form
+$\widetilde Y=\sum_i\varepsilon_i\widetilde c_i$ with
+$\varepsilon\in\{-1,0,1\}^m$, $t=\sum_i\varepsilon_i$; putting
+$z=\sum_i(m-i)\varepsilon_i$ as before,
+\[
+\widetilde Y \;=\; (Qt-dz)+Q\lambda z \;=\; Qt+(Q\lambda-d)z,
+\qquad |z|\le L=\tfrac{m(m+1)}2 .
+\]
+If $\widetilde Y=Qw$, then $Q\mid dz$; since $Q=md+1$ is coprime to $d$,
+$Q\mid z$, and $|z|\le L<Q$ forces $z=0$. Hence $\widetilde Y=Qt$ and
+$w=t$, which is $\loc0$.
+
+(iii) $\loc1$ implies $\loc0$, so by (ii) $\lambda_i=\lambda(m-i)$. The
+negative singleton gives
+\[
+-\widetilde c_0=-1-Q\lambda_0=Q(-\lambda_0)-1\in
+\Delta_{-1}(\widetilde C_\lambda),
+\]
+i.e.\ $t=-1$, $w=-\lambda_0$, $u=1$. $\loc1$ forces $-1=-\lambda_0-1$,
+so $\lambda_0=0$; by (ii) $\lambda_0=m\lambda$, hence $\lambda=0$ and all
+$\lambda_i$ vanish.
+\end{proof}
+
+\begin{remark}[the rigidity persists for bounded
+windows]\label{rem:windowed-rigidity}
+The proof of necessity in (ii) and of (iii) evaluates the invariant only
+at the quotients
+$w=1+\lambda_j+\lambda_{m-1}-\lambda_{j-1}$,
+$w=\lambda_1+\lambda_2-\lambda_0-\lambda_3$ (for $m=4$),
+$w=1+\lambda_2+\lambda_{m-2}-\lambda_0$, and $w=-\lambda_0$, all of
+absolute value at most $4\|\lambda\|_\infty+1$, and only at carry radii
+$u\in\{0,1\}$. Hence the conclusions of
+Proposition~\ref{prop:rigid}(ii)--(iii) already follow from the
+\emph{windowed} invariant
+\[
+Y\in\Delta_t(\widetilde C_\lambda),\ \ Y=Qw-u,\ \ |u|\le1,\ \
+|w|\le 4\|\lambda\|_\infty+1
+\ \Longrightarrow\ t=w-u .
+\]
+So staggered lifts of the Mazur residue system are dead \emph{even in the
+bounded-window regime} of Remark~\ref{rem:window-scope}, as soon as the
+window is comparable to the lift size --- window growth cannot be bought
+by re-using these residues. A wide-window construction must use a
+genuinely new residue system.
+\end{remark}
+
+\begin{remark}[the threshold $m\ge4$ is sharp]\label{rem:m3}
+For $m=3$ ($C_3=\{1,5,9\}$, $Q=13$) the only relations available to
+$\loc0$ are $\pm(c_1+c_2-c_0)=\pm Q$, and one checks that
+$\loc0(\widetilde C_\lambda,13)$ holds precisely when
+$\lambda_0=\lambda_1+\lambda_2$ --- a two-parameter family strictly
+containing $\{\lambda(3,2,1):\lambda\in\Z\}$. So $\lambda=(1,1,0)$
+survives $\loc0$: this establishes sharpness of the threshold for the
+exact classification of Proposition~\ref{prop:rigid}(ii) specifically.
+The threshold is also necessary for part (iii): $\lambda=(0,s,-s)$
+satisfies $\loc1(\widetilde C_\lambda,13)$ for every $s\in\Z$, because
+every signed relation at $m=3$ with $|u|\le1$ has
+$\varepsilon_1=\varepsilon_2$, so the lift contribution
+$13s(\varepsilon_1-\varepsilon_2)$ vanishes (witness from the targeted
+critique run cited in Section~\ref{sec:provenance}).
+\end{remark}
+
+\begin{remark}[context]\label{rem:mr}
+The closest prior result in spirit is Monopoli--Ruzsa \cite{MR15}
+(following work of Diaconis, Shao and Soundararajan on carries): digit
+sets modulo $m^2$ inducing minimal carry behaviour under two-summand
+addition are forced to be arithmetic progressions up to linear maps ---
+an ``AP structure is rigid under carry constraints'' theorem. The setting
+there (two-summand addition carries, no cardinality grading, no lifts of
+a fixed residue system, no admissibility) is disjoint from ours, and no
+statement transfers in either direction; we cite it as the moral
+precedent for Proposition~\ref{prop:rigid}.
+\end{remark}
+
+\section{Consequences for Problem 875}\label{sec:consequences}
+
+Nothing in this note answers either question of \cite{EP875}. What it
+does is redistribute where the difficulty provably lives.
+
+\paragraph{The gap exponent.} Redoing the block-schedule optimization of
+\cite[Remark~2]{Mazur26} with a hypothetical local block of $k$ elements
+and radix $Q\asymp k^\gamma$ (heuristic scaling, assuming the same
+closure mechanics: the exponent condition becomes
+$\tau+\theta(\gamma-\tau)\le0$) gives optimized gap exponent
+$(1+\sqrt\gamma\,)^2$; the value $\gamma=2$ of the standard block gives
+$3+2\sqrt2$, and any all-quotient scalar block with $\gamma<2$ would have
+beaten it. Proposition~\ref{prop:wall} closes exactly that route:
+$\gamma\ge2$ is forced for every all-quotient scalar block, so within
+this framework the exponent $3+2\sqrt2$ is optimal, and by
+Remark~\ref{rem:wall-sharp} even the constant has at most a factor
+$4+o(1)$ of slack. Improving the exponent therefore requires leaving the
+framework, i.e.\ relaxing at least one of:
+\begin{enumerate}
+\item the \emph{all-quotient} requirement --- a local lemma valid only
+for $|w|\le W$ (Remark~\ref{rem:window-scope}); this is untouched by our
+barrier and is the direction we consider live;
+\item the \emph{scalar} invariant $q=t$ --- vector-valued or multi-digit
+invariants;
+\item the single-stage closure by one modulus --- genuinely multi-level
+local structures;
+\item the Mazur residue system itself --- and Proposition~\ref{prop:rigid}
+with Remark~\ref{rem:windowed-rigidity} shows any lift-based overlap
+attempt is forced to abandon it anyway.
+\end{enumerate}
+
+\paragraph{The ratio question.} For $a_{n+1}/a_n\to1$ one needs the
+enumeration to meet every multiplicative window, which the
+nested-interval tower cannot do at block entry; scales must overlap.
+Propositions \ref{prop:sharp} and \ref{prop:closure} clear two suspects:
+neither the quotient window nor the containment/mass hypotheses of the
+closure were the obstruction --- the closure step now needs only a
+cardinality bound, and accepts an arbitrary finite $A\subset\Z$. What
+remains is geometry: $\max C_k<Q_k$ keeps the tower non-overlapping
+(Remark~\ref{rem:geometry}), Proposition~\ref{prop:rigid} says the known
+residues cannot be lifted past the next modulus, and
+Proposition~\ref{prop:wall} says the radix cannot be shrunk to close the
+entry gap within the all-quotient scalar framework. The surviving routes
+are the same four as above, with (1)+(4) --- bounded-window local lemmas
+over new residue systems --- the concrete target: one wants residues
+$r_1,\dots,r_k\pmod Q$ whose protected relation lattice at radius $U$ and
+window $W$ leaves enough lift freedom to cover a long multiplicative
+interval, together with a global argument confining all realized
+quotients to the window. Whether such finite-window freedom survives the
+global induction is open; Proposition~\ref{prop:wall} only says its
+all-quotient idealization does not.
+
+\begin{question}
+Is there a block family $(C^{(m)},Q^{(m)})$, $|C^{(m)}|=m$, satisfying
+the scalar carry property at radius $U(m)\gtrsim m$ for all quotients
+$|w|\le W(m)$ with $W(m)/m\to\infty$ (ideally $W\approx\varepsilon m^2$),
+such that either $Q^{(m)}=o(m^2)$ or $\max C^{(m)}\gg Q^{(m)}$ (so that
+towers can overlap)? By Remark~\ref{rem:windowed-rigidity} its residue
+system cannot be a staggered lift of $C_m$; flat blocks
+(Remark~\ref{rem:wall-sharp}) have spread below $Q$ and cannot overlap,
+so it must be genuinely spanning.
+\end{question}
+
+\section{Provenance}\label{sec:provenance}
+
+This note is a machine-generated artifact and we state its provenance
+plainly; nothing here should be read as a claim of autonomous human-free
+discovery, nor as more than what is described.
+
+The four propositions and their proofs were produced by an OpenAI model
+(\texttt{gpt-5.6-sol}) during a single attack run in the
+\textsc{erdosSweep} harness on 2026-07-09 (transcript in the companion
+repository:
+\path{provenance/attack-transcript-codex.md}).
+They were then adversarially verified, line by line, by an Anthropic
+model (Claude, Fable~5) in a separate read-only session (transcript:
+\path{provenance/critique-transcript-claude.md}),
+which re-derived every algebraic step, refuted nothing, flagged two
+presentation-level overstatements (the missing all-quotient qualifier
+and the ``window removed'' framing, both corrected here), and
+contributed several strengthenings incorporated here: the self-contained proof of
+Lemma~\ref{lem:count}, the no-collision statement and the converse
+(sufficiency) direction in Proposition~\ref{prop:rigid}, the windowed
+rigidity of Remark~\ref{rem:windowed-rigidity}, and the scope
+corrections now embedded in Remarks \ref{rem:autow} and
+\ref{rem:window-scope}. Proposition~\ref{prop:sharp}'s frontier was
+machine-checked by two independent implementations for $3\le m\le26$
+(Remark~\ref{rem:machine}); $m\le2$ by hand. A literature check
+(2026-07-10; report
+\path{provenance/literature-check.md})
+read the primary sources \cite{Mazur26} (note and Lean repository) and
+\cite{BP22} in full and swept the adjacent subset-sum, carries and
+admissible-set literature: no prior statement of Propositions
+\ref{prop:sharp}--\ref{prop:rigid} was found, while the counting
+ingredient of Proposition~\ref{prop:wall} is known and attributed
+(Lemma~\ref{lem:count}, Remark~\ref{rem:technique}); MathSciNet and
+zbMATH were not accessible, which is the residual risk for
+technique-level precedents of Proposition~\ref{prop:wall}.
+
+\emph{Formalization.} Propositions \ref{prop:sharp} and
+\ref{prop:closure} are formalized in Lean~4 with mathlib (directory
+\path{lean/} in the companion repository; toolchain
+\path{leanprover/lean4:v4.30.0-rc2} with the matching mathlib tag, the
+same pins as the Lean repository of \cite{Mazur26}; no code was reused
+from that repository --- the definitions are written fresh against the
+statements here, with $\Delta_t$ encoded via \texttt{Finset} pairs). The
+build is green with zero \texttt{sorry}s, and \texttt{\#print axioms} on
+the main theorems reports only the standard \texttt{propext},
+\texttt{Classical.choice} and \texttt{Quot.sound}. The main declarations
+are: \path{Erdos875.local_carry} --- Proposition~\ref{prop:sharp},
+main direction, with the radius stated division-free as $2|u|\le m+1$
+and \emph{no} hypothesis on the quotient $w$;
+\path{Erdos875.local_carry_sharp} --- the sharpness direction, an
+explicit violation at $|u|=\lceil m/2\rceil+1$ for \emph{every} $m\ge1$
+(a theorem for all $m$, not merely the machine-checked instances); and
+\path{Erdos875.weaklyCarryGood_union} --- Proposition~\ref{prop:closure},
+with only the cardinality hypothesis $2|A|\le k+1$, disjointness,
+$M\ne0$ and $k\ge1$. Propositions \ref{prop:wall} and \ref{prop:rigid}
+are \emph{not} formalized. The formalization also surfaced the
+simplification recorded in the footnote to
+Proposition~\ref{prop:sharp}'s proof (the parity split in the main
+direction is unnecessary).
+
+This document itself was drafted by a further Claude (Fable~5) session
+from the archived transcripts, with every transcribed statement
+re-verified against the sources. Three small items added at write-up
+time --- the automatic-quotient bound in Remark~\ref{rem:autow}, the
+sharpness construction in Remark~\ref{rem:wall-sharp}, and the $m=3$
+example in Remark~\ref{rem:m3} --- were subsequently put through a
+targeted cross-family critique of their own (codex; transcript:
+\path{provenance/critique-note-additions-codex.md}).
+The sharpness construction and the $m=3$ example survived complete
+verification, and that run contributed the explicit extremizers now in
+Remark~\ref{rem:wall-sharp} and the part-(iii) witness now in
+Remark~\ref{rem:m3}. The quotient-constant remark was refuted as
+originally drafted --- it presented $\lfloor m/2\rfloor$ as the exact
+constant, whereas at $m=4$ the true maximum under $|u|\le4$ is $1$, not
+$2$ --- and Remark~\ref{rem:autow} has been corrected per that critique
+to state only the (valid) inequalities. Their proofs are one-liners (the $m=3$
+example a finite check) and are included in full above. Human
+involvement consisted of operating the harness,
+selecting the problem, and reviewing this document. The proofs are short
+and elementary, and the reader is invited to check them directly.
+
+\begin{thebibliography}{99}
+
+\bibitem{BP22}
+J.~Bhanja and R.~K. Pandey,
+\emph{On the minimum size of subset and subsequence sums in integers},
+C. R. Math. Acad. Sci. Paris \textbf{360} (2022), 1099--1111.
+\href{https://doi.org/10.5802/crmath.361}{doi:10.5802/crmath.361}.
+
+\bibitem{EP875}
+T.~F. Bloom, \emph{Erd\H{o}s problems}, Problem 875,
+\url{https://www.erdosproblems.com/875} (accessed July 2026).
+
+\bibitem{CGKL23}
+S.~Cambie, J.~Gao, Y.~Kim and H.~Liu,
+\emph{The Erd\H{o}s distinct subset sums problem in a modular setting},
+arXiv:2308.03748 (2023).
+
+\bibitem{DF95}
+J.-M. Deshouillers and G.~A. Freiman,
+\emph{On an additive problem of Erd\H{o}s and Straus, 1},
+Israel J. Math. \textbf{92} (1995), 33--43.
+
+\bibitem{DF99}
+J.-M. Deshouillers and G.~A. Freiman,
+\emph{On an additive problem of Erd\H{o}s and Straus, 2},
+Ast\'erisque \textbf{258} (1999), 141--148.
+
+\bibitem{DGMS07}
+M.~DeVos, L.~Goddyn, B.~Mohar and R.~\v{S}\'amal,
+\emph{A quadratic lower bound for subset sums},
+Acta Arith. \textbf{129} (2007), no.~2, 187--195.
+
+\bibitem{ENS91}
+P.~Erd\H{o}s, J.-L. Nicolas and A.~S\'ark\H{o}zy,
+\emph{Sommes de sous-ensembles},
+J. Th\'eor. Nombres Bordeaux \textbf{3} (1991), no.~1, 55--72.
+
+\bibitem{Mazur26}
+GPT-5.5 Pro and L.~Mazur,
+\emph{On an absolute-gap variant of Erd\H{o}s Problem \#875},
+note and Lean formalization, May 2026,
+\url{https://github.com/lechmazur/erdos_875}.
+
+\bibitem{MR15}
+F.~Monopoli and I.~Z. Ruzsa,
+\emph{Carries and the arithmetic progression structure of sets},
+arXiv:1506.08869 (2015).
+
+\bibitem{Nathanson95}
+M.~B. Nathanson,
+\emph{Inverse theorems for subset sums},
+Trans. Amer. Math. Soc. \textbf{347} (1995), no.~4, 1409--1418.
+
+\bibitem{Olson68}
+J.~E. Olson,
+\emph{An addition theorem modulo $p$},
+J. Combin. Theory \textbf{5} (1968), 45--52.
+
+\bibitem{Straus66}
+E.~G. Straus,
+\emph{On a problem in combinatorial number theory},
+J. Math. Sci. \textbf{1} (1966), 77--80.
+
+\end{thebibliography}
+
+\end{document}
