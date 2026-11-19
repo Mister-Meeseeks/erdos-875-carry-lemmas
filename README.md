@@ -28,7 +28,7 @@ and proves an impossibility theorem delimiting what that machinery can do:
 | Path | What it is |
 |---|---|
 | `note/note.pdf`, `note/note.tex` | The note (self-contained proofs of Props 1–4) |
-| `lean/` | Lean 4 formalization of Prop 1 (both directions — the lemma *and* its sharpness for every $m$) and Prop 2. Zero `sorry`s; axioms only `propext, Classical.choice, Quot.sound`. See `lean/STATUS.md` for the theorem inventory and build instructions. |
+| `lean/` | Lean 4 formalization of Props 1, 2, 3, and 4 (including sharpness for Props 1 and 3 and `m = 3` counterexamples for Prop 4). Zero `sorry`s, axioms only `propext, Classical.choice, Quot.sound`. See `lean/STATUS.md` for the theorem inventory and build instructions. |
 | `verification/` | Machine checks: exact violation-frontier computation confirming Prop 1's sharpness constant $\lceil m/2\rceil + 1$ for all $m \le 26$, plus the (stdlib-only) Python tools to reproduce them. |
 | `provenance/` | Full transcripts of how these results were produced and vetted (see below). |
 
@@ -38,11 +38,16 @@ and proves an impossibility theorem delimiting what that machinery can do:
 cd lean
 lake update        # first time: fetches mathlib (pinned v4.30.0-rc2)
 lake exe cache get # first time: prebuilt mathlib oleans
-lake build         # ~1–2 min: Erdos875.CarryLemma, Erdos875.Closure
+lake build         # builds CarryLemma, Closure, Barrier, Rigidity, Erdos875
 ```
 
 Key theorems: `Erdos875.local_carry`, `Erdos875.local_carry_sharp`
-(Prop 1), `Erdos875.weaklyCarryGood_union` (Prop 2). The toolchain is pinned
+(Prop 1), `Erdos875.weaklyCarryGood_union` (Prop 2),
+`Erdos875.quadratic_radix_barrier`, `Erdos875.quadratic_radix_barrier_not_mem`,
+`Erdos875.quadratic_radix_barrier_sharp`,
+`Erdos875.quadratic_radix_barrier_not_mem_sharp` (Prop 3), and
+`Erdos875.staggered_lift_weaklyCarryGood_iff`,
+`Erdos875.staggered_lift_localCarry1_eq_zero` (Prop 4). The toolchain is pinned
 to the same versions as Mazur's repository so results are directly
 comparable. No code from that repository is reused (it carries no license);
 definitions here are written fresh from the note's statements.

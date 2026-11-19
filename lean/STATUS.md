@@ -1,8 +1,8 @@
 # Gate 4 status — Lean formalization of the #875 carry-lemma bundle
 
 **Date:** 2026-07-09/10 session.
-**Result: COMPLETE for the session targets — Prop 1 (both directions) and
-Prop 2 are fully proven in Lean 4 / mathlib. Zero `sorry`s. Build is green.**
+**Result: COMPLETE for all four propositions. Props 1, 2, 3, and 4 (including
+sharpness witnesses) are proven in Lean 4 / mathlib with zero `sorry`s.**
 
 ## What is formalized
 
@@ -48,17 +48,39 @@ division-free as `2·|A| ≤ k+1`), disjointness, `M ≠ 0` (implicit in the pap
 where `M` is a modulus ≥ 1), `k ≥ 1`. No containment `A ⊆ [1,M)`, no `ΣA/M`
 estimate, no quotient window.
 
-### Not formalized (out of scope per task priority)
+### `Erdos875/Barrier.lean` (Proposition 3: quadratic radix barrier)
 
-- Prop 3 (quadratic wall `Q ≥ ⌊k²/4⌋+1`) — not started.
-- Prop 4 (staggered-lift rigidity) — not started.
+| Declaration | Content | Status |
+|---|---|---|
+| `subsetSums D` | `FS(D) = { Σ_{x∈S} x : S ⊆ D }` | def |
+| `mod_injOn_subsetSums`, `card_subsetSums_sub_le` | Lemma 4.1: `WeaklyCarryGood C Q` implies `s ↦ s % Q` injective on `FS(C − Q)` and `\|FS(C − Q)\| ≤ Q` | **proved** |
+| `pos_subsetSums_card_ge`, `card_subsetSums_ge`, `card_subsetSums_ge_of_zero_not_mem` | Lemma 4.2: `\|FS(D)\| ≥ ⌊k²/4⌋ + 1`, and `≥ ⌊(k+1)²/4⌋ + 1` when `0 ∉ D` | **proved** |
+| **`quadratic_radix_barrier`** | **Prop 3 general bound**: `Q ≥ ⌊\|C\|²/4⌋ + 1` | **proved** |
+| **`quadratic_radix_barrier_not_mem`** | **Prop 3 `Q ∉ C` bound**: `Q ≥ ⌊(\|C\|+1)²/4⌋ + 1` | **proved** |
+| **`quadratic_radix_barrier_sharp`**, **`quadratic_radix_barrier_not_mem_sharp`** | **Remark 4.5 sharpness**: positive Straus flat blocks attain both bounds for every `k ≥ 1` | **proved** |
+
+### `Erdos875/Rigidity.lean` (Proposition 4: staggered-lift rigidity)
+
+| Declaration | Content | Status |
+|---|---|---|
+| `LocalCarry C Q R` | All-quotient carry predicate at error radius `\|u\| ≤ R` | def |
+| `no_repeated_residues` | Observation 5.1: `WeaklyCarryGood C Q` implies distinct residues mod `Q` | **proved** |
+| `liftedElt`, `liftedBlock m lam` | `C̃_λ = {c_i + Q_m·λ_i : 0 ≤ i < m}` | def |
+| **`mazurElt_mod_injOn`**, **`liftedBlock_card`** | **Prop 4(i)**: pairwise distinct residues mod `Q_m` and `\|C̃_λ\| = m` | **proved** |
+| **`staggered_lift_weaklyCarryGood_iff`** | **Prop 4(ii)**: for `m ≥ 4`, `WeaklyCarryGood (liftedBlock m lam) (mazurQ m)` iff `∃ c, ∀ i < m, lam i = c·(m − i)` | **proved** |
+| **`staggered_lift_localCarry1_eq_zero`** | **Prop 4(iii)**: for `m ≥ 4`, `LocalCarry (liftedBlock m lam) (mazurQ m) 1` implies `∀ i < m, lam i = 0` | **proved** |
+| `staggered_lift_m3_localCarry0_counterexample`, `staggered_lift_m3_localCarry1_counterexample` | Remark 5.4: `m = 3` counterexamples showing `m ≥ 4` is sharp for both (ii) and (iii) | **proved** |
 
 ## Sorries / axioms
 
-- `grep -rn sorry Erdos875/` → none.
+- `grep -rn sorry Erdos875/` -> none.
 - `#print axioms` on `local_carry`, `local_carry_natAbs`, `local_carry_sharp`,
-  `weaklyCarryGood_union`, `carry_arith`, `block_decomp` → only the standard
-  `propext`, `Classical.choice`, `Quot.sound` (see axiom audit below).
+  `weaklyCarryGood_union`, `quadratic_radix_barrier`,
+  `quadratic_radix_barrier_not_mem`, `quadratic_radix_barrier_sharp`,
+  `quadratic_radix_barrier_not_mem_sharp`,
+  `staggered_lift_weaklyCarryGood_iff`, and
+  `staggered_lift_localCarry1_eq_zero` -> only `propext`, `Classical.choice`,
+  `Quot.sound`.
 
 ## Toolchain / build
 
@@ -76,11 +98,11 @@ Build commands (from `tools/875/lean/`):
 export PATH=$HOME/.elan/bin:/opt/homebrew/bin:$PATH
 lake update          # first time only: fetches mathlib + deps
 lake exe cache get   # first time only: downloads prebuilt mathlib oleans (~8300 files)
-lake build           # builds Erdos875.CarryLemma, Erdos875.Closure, Erdos875
+lake build           # builds CarryLemma, Closure, Barrier, Rigidity, Erdos875
 ```
 
-Full build of the two project files takes ~1–2 min on this machine (M-series
-mac) once the cache is in; `lake update` + `cache get` took ~10 min.
+Full build of the four project modules takes ~1-2 min on an M-series Mac once
+the mathlib cache is present.
 
 ## Relation to Mazur's formalization
 
@@ -93,13 +115,3 @@ against the paper statement (`Δ_t` via `Finset` pairs rather than his
 `Sign3`-vector encoding — arguably closer to the paper's set-difference
 definition). Statement-level faithfulness to the attack-run formulation was
 the design constraint.
-
-## Follow-up estimate
-
-- Prop 3 (quadratic wall): the mod-Q injectivity argument + the critique's
-  elementary subset-sum bound (`p` distinct positives give `≥ p(p+1)/2 + 1`
-  subset sums, balanced-split minimization). Realistic effort: one focused
-  session (the distinct-subset-sum counting over `Finset ℤ` is the fiddly
-  part; everything else is arithmetic).
-- Prop 4 (rigidity): linear-system bookkeeping over lifted blocks; also about
-  one session, mostly `Finset`/index plumbing around eq. (6).
